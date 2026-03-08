@@ -1,0 +1,2012 @@
+tell me about the cc hello.c here how the cc works:
+
+cc hello.c
+
+it uses the **C compiler** on your system to turn the C source code into an executable program. Let’s break down **how `cc` works** step-by-step.
+
+## 1. What `cc` Is
+`cc` is the **standard C compiler command** on Unix/Linux systems.
+
+* On many systems, `cc` is actually a **link or wrapper** for another compiler such as:
+
+  * GCC
+  * Clang
+
+So when you run:
+
+cc hello.c
+```
+
+the system might actually run **GCC or Clang behind the scenes**.
+
+---
+
+## 2. Example C Program (`hello.c`)
+
+```c
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\n");
+    return 0;
+}
+```
+
+File name: `hello.c`
+
+---
+
+## 3. What Happens When You Run `cc hello.c`
+
+The compiler performs **four major stages**:
+
+### 1️⃣ Preprocessing
+
+The **preprocessor** handles lines starting with `#`.
+
+Example:
+
+```
+#include <stdio.h>
+```
+
+It replaces them with the contents of the header file.
+
+Other things handled:
+
+* `#include`
+* `#define`
+* `#ifdef`
+
+Command equivalent:
+
+```
+cc -E hello.c
+```
+
+Output: expanded source code.
+
+---
+
+### 2️⃣ Compilation
+
+The compiler converts the preprocessed code into **assembly language**.
+
+Example output (simplified):
+
+```
+movl $0, %eax
+ret
+```
+
+Command equivalent:
+
+```
+cc -S hello.c
+```
+
+Output file:
+
+```
+hello.s
+```
+
+---
+
+### 3️⃣ Assembly
+
+The **assembler** converts assembly code into **machine code (object file)**.
+
+Command equivalent:
+
+```
+cc -c hello.c
+```
+
+Output file:
+
+```
+hello.o
+```
+
+Object files contain **binary machine instructions**.
+
+---
+
+### 4️⃣ Linking
+
+The **linker** combines:
+
+* your object file (`hello.o`)
+* libraries like `stdio`
+
+to create the final **executable program**.
+
+Final output:
+
+```
+a.out
+```
+
+You can run it:
+
+```
+./a.out
+```
+
+Output:
+
+```
+Hello, World!
+```
+
+---
+
+## 4. Diagram of the Process
+
+```
+hello.c
+   │
+   ▼
+Preprocessor
+   │
+   ▼
+Expanded C Code
+   │
+   ▼
+Compiler
+   │
+   ▼
+Assembly Code (.s)
+   │
+   ▼
+Assembler
+   │
+   ▼
+Object File (.o)
+   │
+   ▼
+Linker
+   │
+   ▼
+Executable (a.out)
+```
+
+## 5. Useful `cc` Options
+
+| Command               | Meaning                         |
+| --------------------- | ------------------------------- |
+| `cc hello.c`          | compile and link                |
+| `cc -o hello hello.c` | output executable named `hello` |
+| `cc -c hello.c`       | compile only (create `.o`)      |
+| `cc -Wall hello.c`    | show warnings                   |
+| `cc -g hello.c`       | add debugging info              |
+
+cc -o hello hello.c
+./hello
+```
+
+---
+
+✅ **Summary**
+
+`cc hello.c` does the following:
+
+1. Preprocess C code
+2. Compile to assembly
+3. Assemble to object code
+4. Link libraries → create executable
+===============================================================================================================
+
+2.how exactly if i give cc means taking the gcc or clang, i want to know how linux internally taking it?
+
+When you type:
+
+```
+cc hello.c
+```
+
+Linux does **not magically know a compiler**. It follows a **command lookup mechanism** in the shell. Usually `cc` is just a **symbolic link** that points to the real compiler such as **GCC** or **Clang**.
+
+Let’s see **exactly what happens internally**.
+
+---
+
+## 1. Shell Command Lookup
+
+When you type:
+
+```
+cc hello.c
+```
+
+the shell (like Bash) searches for the program `cc` in directories listed in the **PATH environment variable**.
+
+Example:
+
+```
+echo $PATH
+```
+
+Output might be:
+
+```
+/usr/local/bin:/usr/bin:/bin:/usr/sbin
+```
+
+The shell checks in order:
+
+```
+/usr/local/bin/cc
+/usr/bin/cc
+/bin/cc
+/usr/sbin/cc
+```
+
+First match is executed.
+
+---
+
+## 2. Checking What `cc` Actually Is
+
+Run:
+
+```
+which cc
+```
+
+Example output:
+
+```
+/usr/bin/cc
+```
+
+Now check if it is a **symbolic link**:
+
+```
+ls -l /usr/bin/cc
+```
+
+Example result:
+
+```
+lrwxrwxrwx 1 root root 20 Jun 10 12:00 /usr/bin/cc -> /etc/alternatives/cc
+```
+
+This means:
+
+```
+cc → /etc/alternatives/cc
+```
+
+---
+
+## 3. Linux Alternatives System
+
+Linux distributions (like Ubuntu/Debian) use the **alternatives system** to choose default programs.
+
+```
+/etc/alternatives/cc
+```
+
+Check it:
+
+```
+ls -l /etc/alternatives/cc
+```
+
+Example:
+
+```
+/etc/alternatives/cc -> /usr/bin/gcc
+```
+
+So the chain becomes:
+
+```
+cc
+ ↓
+/usr/bin/cc
+ ↓
+/etc/alternatives/cc
+ ↓
+/usr/bin/gcc
+```
+
+Now **GCC actually runs**.
+
+---
+
+## 4. Execution at Kernel Level
+
+Once the shell finds the program path:
+
+```
+/usr/bin/gcc
+```
+
+it calls the **execve() system call**.
+
+This is handled by the Linux kernel.
+
+Steps:
+
+1. Shell prepares arguments
+
+```
+argv[0] = "cc"
+argv[1] = "hello.c"
+```
+
+2. Shell calls
+
+```
+execve("/usr/bin/gcc", argv, envp)
+```
+
+3. Kernel loads the binary into memory.
+
+4. The compiler process starts executing.
+
+---
+
+## 5. Internally GCC Does This
+
+When `gcc` runs:
+
+```
+gcc hello.c
+```
+
+it internally calls several programs:
+
+```
+cpp   → preprocessor
+cc1   → compiler
+as    → assembler
+ld    → linker
+```
+
+Example flow:
+
+```
+hello.c
+   ↓
+cpp (preprocess)
+   ↓
+cc1 (compile)
+   ↓
+as (assemble)
+   ↓
+ld (link)
+   ↓
+a.out
+```
+
+---
+
+## 6. Quick Way to See the Whole Chain
+
+Run:
+
+```
+readlink -f $(which cc)
+```
+
+Example output:
+
+```
+/usr/bin/gcc
+```
+
+So **`cc` is just a pointer to gcc or clang**.
+
+---
+
+✅ **In simple terms**
+
+```
+cc command
+   ↓
+shell searches PATH
+   ↓
+finds /usr/bin/cc
+   ↓
+symbolic link → /etc/alternatives/cc
+   ↓
+points to gcc or clang
+   ↓
+kernel execve() runs compiler
+```
+
+==================================================================================================================
+3.
+cc
+ ↓
+/usr/bin/cc
+ ↓
+/etc/alternatives/cc
+ ↓
+/usr/bin/gcc
+from here explain me in words so i can say to my manager
+
+You can explain it to your manager in **simple words like this**:
+
+---
+
+When we type the command **`cc`** in Linux to compile a C program, the system does not directly know which compiler to use. Instead, Linux follows a chain to determine the actual compiler program.
+
+First, the **shell** (like Bash) looks for the `cc` command in the system directories listed in the **PATH**. It usually finds the command at:
+
+```
+/usr/bin/cc
+```
+
+However, `/usr/bin/cc` is not the real compiler. It is a **symbolic link**, which means it simply points to another file. This link usually points to:
+
+```
+/etc/alternatives/cc
+```
+
+The `/etc/alternatives` directory is part of the Linux **alternatives system**, which allows the operating system to manage multiple versions of similar programs. For example, a system may have both **GCC** and **Clang** installed.
+
+The `/etc/alternatives/cc` link then points to the actual compiler executable, most commonly:
+
+```
+/usr/bin/gcc
+```
+
+which is the GCC.
+
+So the full process is:
+
+1. User runs `cc`.
+2. The shell finds `/usr/bin/cc`.
+3. `/usr/bin/cc` redirects to `/etc/alternatives/cc`.
+4. `/etc/alternatives/cc` points to the real compiler like `/usr/bin/gcc`.
+5. The system finally runs the GCC compiler to compile the C program.
+
+In short, **`cc` is just a generic command name**, and Linux internally redirects it to the actual compiler (usually GCC) using symbolic links and the alternatives system.
+
+=================================================================================================================
+
+4.First, the shell (like Bash) looks for the cc command in the system directories listed in the PATH
+here what exacrly is the path
+
+### What exactly is **PATH** in Linux?
+
+**PATH** is an **environment variable** in Linux that tells the shell **where to look for executable programs (commands)** when you type a command like `cc`, `ls`, or `gcc`.
+
+Think of **PATH as a list of folders** the system searches to find a command.
+
+---
+
+### Example
+
+If you type:
+
+```bash
+echo $PATH
+```
+
+you might see something like:
+
+```bash
+/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+```
+
+This means the shell will search for a command **in this order**:
+
+1. `/usr/local/sbin`
+2. `/usr/local/bin`
+3. `/usr/sbin`
+4. `/usr/bin`
+5. `/sbin`
+6. `/bin`
+
+Each directory is separated by a **colon (`:`)**.
+
+---
+
+### What happens when you type `cc`
+
+When you type:
+
+```bash
+cc hello.c
+```
+
+the shell (like Bash) does the following:
+
+1. Looks for `cc` inside `/usr/local/sbin`
+2. If not found → checks `/usr/local/bin`
+3. If not found → checks `/usr/sbin`
+4. If not found → checks `/usr/bin`
+
+Eventually it finds:
+
+```
+/usr/bin/cc
+```
+
+Then it runs that program.
+
+---
+
+### Simple Example
+
+If PATH contains:
+
+```
+/usr/bin:/bin
+```
+
+and you type:
+
+```bash
+ls
+```
+
+the shell checks:
+
+```
+/usr/bin/ls
+/bin/ls
+```
+
+Once it finds `/usr/bin/ls`, it executes it.
+
+---
+
+### Why PATH Exists
+
+Without PATH, you would have to type the **full program path every time**.
+
+Instead of:
+
+```bash
+gcc hello.c
+```
+
+you would need to write:
+
+```bash
+/usr/bin/gcc hello.c
+```
+
+PATH avoids this and makes commands easier to run.
+
+---
+
+### One-line explanation for your manager
+
+You can say:
+
+> **PATH is an environment variable that contains a list of directories where the shell searches for executable 
+commands. When we type a command like `cc`, the shell checks each directory in PATH until it finds the executable
+file.**
+
+===================================================================================================================
+5. The /etc/alternatives directory is part of the Linux alternatives system, which allows the operating system to 
+manage multiple versions of similar programs. For example, a system may have both GCC and Clang installed.
+can u explain me this in simple terms. also then how do i know i have clang in my machine and how to execute it
+
+Ans:
+### 1. What the **alternatives system** means (in simple terms)
+
+In Linux, sometimes **multiple programs can do the same job**.
+For example, two different C compilers:
+
+* GCC
+* Clang
+
+Both can compile C programs.
+
+Instead of forcing users to remember different paths, Linux uses the **alternatives system** to manage which program should be the **default**.
+
+Think of it like a **switch or pointer**.
+
+```
+cc
+ ↓
+/usr/bin/cc
+ ↓
+/etc/alternatives/cc
+ ↓
+actual compiler (gcc or clang)
+```
+
+So the **alternatives system decides which real program runs when you type `cc`.**
+
+Example:
+
+* If GCC is selected → `cc` runs **gcc**
+* If Clang is selected → `cc` runs **clang**
+
+This makes it easy to switch compilers **without changing commands**.
+
+---
+
+### 2. Simple real-life analogy
+
+Imagine a **TV remote with a default channel**.
+
+You press **Power**, and the TV opens to:
+
+* Channel 1 (GCC)
+  or
+* Channel 2 (Clang)
+
+The **alternatives system is like the setting that chooses the default channel**.
+
+---
+
+### 3. How to check if **Clang is installed**
+
+Run:
+
+```bash
+clang --version
+```
+
+If installed, you will see something like:
+
+```
+clang version 14.0.0
+```
+
+If not installed, you'll see something like:
+
+```
+command not found
+```
+
+---
+
+### 4. Another way to check
+
+```bash
+which clang
+```
+
+Example output:
+
+```
+/usr/bin/clang
+```
+
+This means Clang exists in your system.
+
+---
+
+### 5. How to execute Clang
+
+Instead of `cc`, run:
+
+```bash
+clang hello.c
+```
+
+or
+
+```bash
+clang -o hello hello.c
+./hello
+```
+
+Example flow:
+
+```
+hello.c
+   ↓
+clang
+   ↓
+executable
+```
+
+---
+
+### 6. How to see what `cc` currently points to
+
+Run:
+
+```bash
+readlink -f /usr/bin/cc
+```
+
+Example output:
+
+```
+/usr/bin/gcc
+```
+
+or
+
+```
+/usr/bin/clang
+```
+
+---
+
+### 7. One-sentence explanation for your manager
+
+You can say:
+
+> Linux uses the **alternatives system** to manage multiple programs that perform the same task. For example, 
+both GCC and Clang can compile C code, and the `/etc/alternatives` mechanism decides which compiler runs when we 
+use the generic command `cc`.
+
+==============================================================================================================
+
+6.how exactly the ./a.out works i want internally how stack is creating all of linux internals
+
+I’ll explain **what really happens inside Linux when you run `./a.out`**, from the shell to the **stack creation and process memory layout**. I’ll keep it structured so you can explain it technically if needed.
+
+---
+
+# 1. When You Type `./a.out`
+
+You run:
+
+```bash
+./a.out
+```
+
+Two important things happen immediately.
+
+### `./`
+
+Means **current directory**.
+
+Linux normally does **not search the current directory in PATH** for security reasons.
+So `./` explicitly tells the shell:
+
+> Run the executable located in the current directory.
+
+---
+
+# 2. Shell Starts the Program
+
+The shell (usually Bash) performs these steps:
+
+1. Reads the command `./a.out`
+2. Checks that the file exists
+3. Verifies **execute permission**
+4. Calls a system call named:
+
+```
+execve()
+```
+
+Example internally:
+
+```
+execve("./a.out", argv, envp)
+```
+
+Where:
+
+* `argv` → program arguments
+* `envp` → environment variables
+
+This call goes into the Linux kernel.
+
+---
+
+# 3. Kernel Creates a New Process
+
+The kernel now loads the program.
+
+Typical flow:
+
+```
+shell
+  │
+  ├─ fork()
+  │
+  └─ execve("./a.out")
+```
+
+### Step 1: fork()
+
+The shell creates a **child process**.
+
+```
+Parent process (bash)
+        │
+        └── Child process
+```
+
+### Step 2: execve()
+
+The child process **replaces its memory with the new program** (`a.out`).
+
+---
+
+# 4. Kernel Reads the Executable Format
+
+Linux checks the file format.
+
+Most Linux executables use:
+
+ELF
+
+The kernel reads the **ELF header** to understand:
+
+* program entry point
+* required libraries
+* memory segments
+
+Example:
+
+```
+readelf -h a.out
+```
+
+---
+
+# 5. Kernel Creates Process Virtual Memory
+
+The kernel now builds the **process address space**.
+
+Typical layout:
+
+```
+High Memory
+────────────────────
+Stack
+────────────────────
+Shared Libraries
+────────────────────
+Heap
+────────────────────
+BSS
+────────────────────
+Data
+────────────────────
+Text (program code)
+────────────────────
+Low Memory
+```
+
+Explanation:
+
+### Text Segment
+
+Contains **compiled machine instructions**.
+
+```
+main()
+printf()
+```
+
+Read-only.
+
+---
+
+### Data Segment
+
+Contains **initialized global variables**.
+
+Example:
+
+```c
+int x = 10;
+```
+
+---
+
+### BSS Segment
+
+Contains **uninitialized globals**.
+
+Example:
+
+```c
+int y;
+```
+
+---
+
+### Heap
+
+Used for **dynamic memory allocation**.
+
+Example:
+
+```c
+malloc()
+```
+
+Heap grows **upward**.
+
+---
+
+### Stack
+
+Stores:
+
+* function calls
+* local variables
+* return addresses
+* arguments
+
+Stack grows **downward**.
+
+---
+
+# 6. Stack Creation (Very Important)
+
+The kernel prepares the **initial stack** before program starts.
+
+Stack contains:
+
+```
+| environment variables |
+| program arguments     |
+| argc                  |
+```
+
+Example if run:
+
+```
+./a.out hello world
+```
+
+Stack becomes:
+
+```
+envp
+envp
+envp
+NULL
+argv[2] -> "world"
+argv[1] -> "hello"
+argv[0] -> "./a.out"
+argc = 3
+```
+
+---
+
+# 7. Program Entry Point
+
+Execution does **not start directly at `main()`**.
+
+It starts at a runtime function called:
+
+```
+_start
+```
+
+This comes from the C runtime library.
+
+Flow:
+
+```
+_start
+   ↓
+__libc_start_main
+   ↓
+main()
+```
+
+Libraries come from:
+
+glibc
+
+---
+
+# 8. Dynamic Linking
+
+If the program uses shared libraries like:
+
+```
+printf()
+```
+
+Linux loads the **dynamic linker**:
+
+```
+/lib64/ld-linux-x86-64.so
+```
+
+It loads required libraries like:
+
+```
+libc.so
+```
+
+Then execution continues.
+
+---
+
+# 9. Stack During Function Calls
+
+Example program:
+
+```c
+int main() {
+    int x = 10;
+    func(x);
+}
+```
+
+Stack becomes:
+
+```
+func() stack frame
+ return address
+ parameter x
+ local variables
+────────────────
+main() stack frame
+ return address
+ local variable x
+```
+
+Each function creates a **stack frame**.
+
+---
+
+# 10. When Program Ends
+
+When `main()` returns:
+
+```
+exit()
+```
+
+Kernel performs:
+
+* free memory
+* close file descriptors
+* return exit code to shell
+
+Example:
+
+```
+echo $?
+```
+
+---
+
+# 11. Full Internal Flow
+
+```
+User types ./a.out
+        │
+        ▼
+Shell (bash)
+        │
+        ▼
+fork()
+        │
+        ▼
+execve("./a.out")
+        │
+        ▼
+Kernel loads ELF
+        │
+        ▼
+Create process memory layout
+        │
+        ▼
+Create stack (argc argv envp)
+        │
+        ▼
+Dynamic linker loads libraries
+        │
+        ▼
+_start
+        │
+        ▼
+__libc_start_main
+        │
+        ▼
+main()
+```
+
+---
+
+# 12. Tools to Actually See This (Real Linux Internals)
+
+### See process memory
+
+```
+cat /proc/<pid>/maps
+```
+
+---
+
+### Trace system calls
+
+```
+strace ./a.out
+```
+
+---
+
+### See ELF internals
+
+```
+readelf -a a.out
+```
+
+---
+
+### See stack during debugging
+
+```
+gdb ./a.out
+```
+
+---
+
+✅ **Short explanation you can say in meetings**
+
+> When we run `./a.out`, the shell uses `fork()` and `execve()` to start a new process. The Linux kernel loads 
+the ELF executable, creates a virtual memory layout containing text, data, heap, and stack segments, 
+initializes the stack with program arguments and environment variables, loads required shared libraries 
+through the dynamic linker, and finally starts execution from `_start`, which eventually calls the `main()` 
+function.
+
+================================================================================================================
+7.
+Great — let’s go **deep into Linux internals** step-by-step. I’ll explain **what happens inside the OS when you run `./a.out`**, including:
+
+1. `fork()` and `execve()` internals
+2. ELF loading
+3. Virtual memory creation
+4. Initial stack creation
+5. Page tables and memory mapping
+6. `_start → main()` flow
+7. Stack frames in assembly
+8. Context switching
+
+This is essentially how the Linux kernel runs a program.
+
+---
+
+# 1. User Runs `./a.out`
+
+Command:
+
+```bash
+./a.out
+```
+
+The shell (usually Bash) processes the command.
+
+Steps:
+
+1. Parse command
+2. Verify file exists
+3. Check execute permission
+4. Create a child process
+5. Replace child process with program
+
+---
+
+# 2. `fork()` – Process Creation
+
+Shell calls:
+
+```c
+fork()
+```
+
+Kernel creates a **new process**.
+
+Process structure inside kernel:
+
+```
+task_struct
+```
+
+This structure contains:
+
+```
+PID
+registers
+memory descriptor
+file descriptors
+scheduling info
+```
+
+Parent and child initially share memory using:
+
+```
+Copy-on-Write (COW)
+```
+
+Meaning memory isn't copied immediately.
+
+```
+Parent
+   │
+   └── Child
+```
+
+Both continue execution.
+
+---
+
+# 3. `execve()` – Replace Process Image
+
+The child process then calls:
+
+```c
+execve("./a.out", argv, envp)
+```
+
+This system call **replaces the entire process memory**.
+
+Kernel removes:
+
+```
+old code
+old stack
+old heap
+```
+
+and loads the new program.
+
+---
+
+# 4. Executable Format (ELF)
+
+Linux executables use:
+
+ELF
+
+Kernel reads the **ELF header**.
+
+Important fields:
+
+```
+Entry point
+Program headers
+Section headers
+```
+
+Example command:
+
+```bash
+readelf -h a.out
+```
+
+Key information:
+
+```
+Entry point address
+Number of segments
+Architecture
+```
+
+---
+
+# 5. Kernel Builds Process Address Space
+
+Linux uses **virtual memory**.
+
+Typical process layout:
+
+```
+High Address
+────────────────────
+Stack
+────────────────────
+Memory mapped files
+Shared libraries
+────────────────────
+Heap
+────────────────────
+BSS
+────────────────────
+Data
+────────────────────
+Text
+────────────────────
+Low Address
+```
+
+Explanation:
+
+### Text Segment
+
+Compiled instructions.
+
+Example:
+
+```
+main()
+printf()
+```
+
+Read-only.
+
+---
+
+### Data Segment
+
+Initialized globals.
+
+Example:
+
+```c
+int x = 10;
+```
+
+---
+
+### BSS Segment
+
+Uninitialized globals.
+
+```c
+int y;
+```
+
+---
+
+### Heap
+
+Dynamic memory allocation.
+
+Functions:
+
+```
+malloc()
+calloc()
+realloc()
+```
+
+Heap grows upward.
+
+---
+
+### Stack
+
+Used for:
+
+```
+function calls
+parameters
+local variables
+return addresses
+```
+
+Stack grows downward.
+
+---
+
+# 6. Page Tables and Memory Mapping
+
+Linux does **not directly use physical memory**.
+
+Instead it uses:
+
+```
+Virtual Memory
+```
+
+Each process gets its own **virtual address space**.
+
+Kernel creates **page tables**.
+
+Example mapping:
+
+```
+Virtual Address → Physical Address
+```
+
+Example:
+
+```
+0x400000 → physical frame 120
+0x401000 → physical frame 452
+```
+
+Memory divided into pages:
+
+```
+4 KB per page (commonly)
+```
+
+Hardware uses the **MMU (Memory Management Unit)** to translate addresses.
+
+---
+
+# 7. Kernel Creates Initial Stack
+
+Before program starts, kernel prepares the **initial stack**.
+
+Stack layout:
+
+```
+| environment variables |
+| argv strings         |
+| argv pointers        |
+| argc                 |
+```
+
+Example command:
+
+```bash
+./a.out hello world
+```
+
+Stack:
+
+```
+envp
+envp
+NULL
+argv[2] → "world"
+argv[1] → "hello"
+argv[0] → "./a.out"
+argc = 3
+```
+
+---
+
+# 8. Program Entry Point
+
+Execution does **not start at `main()`**.
+
+Instead it starts at:
+
+```
+_start
+```
+
+This function is part of the C runtime.
+
+Provided by:
+
+glibc
+
+Execution flow:
+
+```
+_start
+  ↓
+__libc_start_main
+  ↓
+main()
+```
+
+---
+
+# 9. Dynamic Linking
+
+Programs often use shared libraries.
+
+Example:
+
+```
+printf()
+```
+
+Kernel loads the **dynamic linker**:
+
+```
+ld-linux.so
+```
+
+Example path:
+
+```
+/lib64/ld-linux-x86-64.so
+```
+
+It loads libraries like:
+
+```
+libc.so
+libm.so
+```
+
+Then program starts.
+
+---
+
+# 10. Stack Frames (Function Calls)
+
+Example program:
+
+```c
+int add(int a, int b) {
+    int c = a + b;
+    return c;
+}
+```
+
+Stack during execution:
+
+```
+add() frame
+ return address
+ parameter a
+ parameter b
+ local variable c
+────────────────────
+main() frame
+ return address
+```
+
+Each function creates a **stack frame**.
+
+---
+
+# 11. Assembly Example
+
+Example compiled code:
+
+```assembly
+push rbp
+mov rbp, rsp
+sub rsp, 16
+```
+
+Explanation:
+
+```
+push rbp      save previous frame pointer
+mov rbp,rsp   create new stack frame
+sub rsp,16    allocate space for locals
+```
+
+Function return:
+
+```assembly
+leave
+ret
+```
+
+Which means:
+
+```
+restore stack
+jump back to caller
+```
+
+---
+
+# 12. Context Switching
+
+Linux runs many processes simultaneously.
+
+Scheduler chooses which process runs.
+
+When switching processes:
+
+Kernel saves:
+
+```
+CPU registers
+program counter
+stack pointer
+```
+
+Inside process control block.
+
+Then loads another process state.
+
+Flow:
+
+```
+Process A running
+      ↓
+Timer interrupt
+      ↓
+Kernel scheduler
+      ↓
+Switch to Process B
+```
+
+---
+
+# 13. Process Data Structure in Kernel
+
+Inside the kernel, each process has:
+
+```
+task_struct
+```
+
+This contains:
+
+```
+PID
+process state
+memory map
+open files
+scheduling info
+stack pointer
+```
+
+---
+
+# 14. When Program Ends
+
+When `main()` returns:
+
+```
+exit()
+```
+
+Kernel performs cleanup:
+
+```
+free memory
+close files
+send exit status
+```
+
+Shell receives exit code:
+
+```bash
+echo $?
+```
+
+---
+
+# 15. Full Linux Execution Flow
+
+```
+User types ./a.out
+        │
+        ▼
+Shell parses command
+        │
+        ▼
+fork()
+        │
+        ▼
+execve()
+        │
+        ▼
+Kernel loads ELF
+        │
+        ▼
+Create virtual memory layout
+        │
+        ▼
+Setup page tables
+        │
+        ▼
+Build initial stack
+        │
+        ▼
+Load dynamic linker
+        │
+        ▼
+_start
+        │
+        ▼
+__libc_start_main
+        │
+        ▼
+main()
+        │
+        ▼
+Program execution
+        │
+        ▼
+exit()
+```
+
+=============================================================================================================
+
+
+8. if my main program has three printf statements then each time it creates stack frame in the stack. what 
+exactly it is happening because when we call any function it will create stack while return back it will 
+destroy the stack. so printf how it works
+
+Good question — there is a **small misconception** here.
+If your program has **three `printf()` statements**, it does **NOT create three persistent stack frames at the same time**. Instead, **each function call temporarily creates a stack frame and removes it when the function returns**.
+
+Let’s walk through it carefully.
+
+---
+
+# 1. Example Program
+
+```c
+#include <stdio.h>
+
+int main() {
+    printf("Hello\n");
+    printf("World\n");
+    printf("Linux\n");
+    return 0;
+}
+```
+
+`main()` calls `printf()` **three times**.
+
+---
+
+# 2. Stack Before `printf()`
+
+When the program starts, execution eventually reaches `main()` through the runtime setup from glibc.
+
+Stack initially looks like:
+
+```
+|----------------|
+| stack frame    |  ← main()
+| local vars     |
+| return address |
+|----------------|
+```
+
+---
+
+# 3. First `printf()` Call
+
+When this line runs:
+
+```c
+printf("Hello\n");
+```
+
+CPU executes a **CALL instruction**.
+
+Example assembly (simplified):
+
+```
+call printf
+```
+
+The CPU automatically:
+
+1. **Pushes return address onto stack**
+2. Jumps to `printf()`.
+
+Stack becomes:
+
+```
+|----------------|
+| printf frame   | ← printf()
+| arguments      |
+| return addr    |
+|----------------|
+| main frame     |
+|----------------|
+```
+
+Now `printf()` executes.
+
+---
+
+# 4. Inside `printf()`
+
+`printf()` is actually a complex function inside the C standard library.
+
+It eventually performs a **system call** to write to the terminal.
+
+Typical flow inside:
+
+```
+printf
+   ↓
+vfprintf
+   ↓
+write()
+```
+
+The `write()` system call goes into the Linux kernel to print to stdout.
+
+---
+
+# 5. Returning From `printf()`
+
+After printing:
+
+```
+ret
+```
+
+CPU pops the return address.
+
+Stack frame of `printf()` is removed.
+
+Stack returns to:
+
+```
+|----------------|
+| main frame     |
+|----------------|
+```
+
+So **the `printf()` frame exists only temporarily**.
+
+---
+
+# 6. Second `printf()`
+
+Now the next line runs:
+
+```c
+printf("World\n");
+```
+
+Again:
+
+```
+call printf
+```
+
+Stack becomes:
+
+```
+|----------------|
+| printf frame   |
+|----------------|
+| main frame     |
+|----------------|
+```
+
+After returning, stack goes back to only `main()`.
+
+---
+
+# 7. Third `printf()`
+
+Same process repeats.
+
+```
+call printf
+ret
+```
+
+Stack frame created → used → destroyed.
+
+---
+
+# 8. Important Concept
+
+At any moment you usually have:
+
+```
+main()
+  ↓
+printf()
+```
+
+Only **two stack frames**.
+
+Not three.
+
+Because each call finishes before the next starts.
+
+---
+
+# 9. Visual Timeline
+
+Execution timeline:
+
+```
+Start main()
+   │
+   ▼
+call printf
+   │
+return
+   │
+   ▼
+call printf
+   │
+return
+   │
+   ▼
+call printf
+   │
+return
+```
+
+Stack always returns to the `main()` frame.
+
+---
+
+# 10. If Calls Were Nested
+
+Example:
+
+```c
+printf("%d", add(5,3));
+```
+
+Then stack becomes:
+
+```
+add()
+printf()
+main()
+```
+
+Multiple frames exist simultaneously.
+
+---
+
+# 11. Assembly Level Example
+
+Typical compiled code:
+
+```
+lea rdi, "Hello"
+call printf
+```
+
+CPU behavior:
+
+```
+push return_address
+jump printf
+```
+
+Return:
+
+```
+pop return_address
+jump back
+```
+
+---
+
+# 12. Very Important Detail
+
+`printf()` is a **variadic function**.
+
+Meaning it accepts variable arguments:
+
+```c
+printf("%d %s", x, str);
+```
+
+Arguments are passed via:
+
+```
+registers (first few)
+stack (remaining)
+```
+
+depending on the CPU ABI.
+
+---
+
+# 13. Real Stack Example
+
+While inside `printf()`:
+
+```
+|----------------|
+| printf locals  |
+| return addr    |
+| arguments      |
+|----------------|
+| main locals    |
+| return addr    |
+|----------------|
+```
+
+After return:
+
+```
+|----------------|
+| main locals    |
+| return addr    |
+|----------------|
+```
+
+---
+
+# 14. One-line explanation you can give
+
+> Every time a function like `printf()` is called, the CPU creates a temporary stack frame containing the 
+return address and arguments. After the function finishes execution, the frame is removed and control returns 
+to the caller function.
+
+---
