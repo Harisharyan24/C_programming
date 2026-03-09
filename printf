@@ -1,0 +1,936 @@
+1. how printf works in c, i want internals of linux how it is printing on the console with the example
+
+To understand **how `printf` works internally in Linux**, we need to look at several layers:
+
+1. **Your C program**
+2. **glibc implementation of `printf`**
+3. **System call (`write`)**
+4. **Linux kernel**
+5. **Terminal (TTY / pseudo-terminal)**
+
+I'll walk through the full pipeline step-by-step.
+
+---
+
+# 1. Simple Example Program
+
+```c
+#include <stdio.h>
+
+int main() {
+    printf("Hello %s %d\n", "world", 42);
+    return 0;
+}
+```
+
+When compiled and executed:
+
+```
+Hello world 42
+```
+
+But internally **a lot happens**.
+
+---
+
+# 2. What the Compiler Actually Links
+
+`printf` is **not part of the Linux kernel**.
+It comes from **glibc (GNU C Library)**.
+
+Your program links with:
+
+```
+libc.so
+```
+
+So the call flow starts like:
+
+```
+main()
+   ↓
+printf()
+   ↓
+vfprintf()
+   ↓
+buffer formatting
+   ↓
+write()
+   ↓
+Linux kernel
+   ↓
+TTY driver
+   ↓
+terminal emulator
+```
+
+---
+
+# 3. Inside glibc `printf`
+
+Actual implementation (simplified) looks like:
+
+```c
+int printf(const char *format, ...)
+{
+    va_list args;
+    int done;
+
+    va_start(args, format);
+    done = vfprintf(stdout, format, args);
+    va_end(args);
+
+    return done;
+}
+```
+
+### Explanation
+
+`printf` is just a **wrapper**.
+
+It forwards everything to:
+
+```
+vfprintf()
+```
+
+which handles **variable arguments (`...`)**.
+
+---
+
+# 4. Format String Parsing
+
+Example:
+
+```c
+printf("Hello %s %d\n", "world", 42);
+```
+
+`vfprintf` scans the format string:
+
+```
+Hello %s %d\n
+      ↑  ↑
+```
+
+Steps:
+
+1. Print literal text until `%`
+2. Detect format specifier
+3. Extract argument from `va_list`
+4. Convert it to string
+5. Append to output buffer
+
+Pseudo code:
+
+```c
+for each character in format:
+    if character != '%'
+        append to buffer
+    else
+        parse format specifier
+        fetch argument from va_list
+        convert argument to string
+        append result to buffer
+```
+
+---
+
+# 5. Output Buffering
+
+glibc does **buffered I/O**.
+
+`stdout` is a `FILE` structure.
+
+Simplified:
+
+```c
+struct FILE {
+    char *buffer;
+    int buffer_size;
+    int fd;
+};
+```
+
+`stdout` usually maps to:
+
+```
+fd = 1
+```
+
+The formatted text is first placed in the **buffer**.
+
+Example buffer:
+
+```
+Hello world 42\n
+```
+
+---
+
+# 6. Writing to Kernel (System Call)
+
+Once buffer is ready, glibc calls:
+
+```c
+write(1, buffer, length);
+```
+
+Example:
+
+```c
+write(1, "Hello world 42\n", 15);
+```
+
+Where:
+
+```
+1 = STDOUT file descriptor
+```
+
+This triggers a **system call**.
+
+---
+
+# 7. System Call Mechanism
+
+The program switches from **user space → kernel space**.
+
+On x86-64 Linux:
+
+```
+rax = syscall number (write = 1)
+rdi = fd
+rsi = buffer pointer
+rdx = length
+syscall instruction
+```
+
+Equivalent kernel call:
+
+```
+sys_write(fd, buf, count)
+```
+
+---
+
+# 8. Inside Linux Kernel
+
+Kernel function:
+
+```
+ksys_write()
+   ↓
+vfs_write()
+   ↓
+file->f_op->write()
+```
+
+Because `stdout` is a **terminal**, the path goes to:
+
+```
+tty_write()
+```
+
+---
+
+# 9. TTY Subsystem
+
+Linux treats terminal as a **character device**.
+
+Example device:
+
+```
+/dev/pts/0
+```
+
+Write flow:
+
+```
+write()
+   ↓
+tty_write()
+   ↓
+line discipline
+   ↓
+terminal driver
+```
+
+The kernel sends characters to the **pseudo-terminal master**.
+
+---
+
+# 10. Terminal Emulator
+
+Programs like:
+
+* GNOME Terminal
+* xterm
+* kitty
+* VSCode terminal
+
+are **terminal emulators**.
+
+They read from:
+
+```
+/dev/pts/N
+```
+
+When they receive characters:
+
+```
+Hello world 42\n
+```
+
+They **render text on screen**.
+
+---
+
+# 11. Full End-to-End Flow
+
+```
+User Program
+    |
+    | printf()
+    v
+glibc
+    |
+    | vfprintf()
+    | format parsing
+    | buffer creation
+    v
+write(1, buffer, size)
+    |
+    | syscall
+    v
+Linux Kernel
+    |
+    | sys_write()
+    | tty_write()
+    v
+Pseudo Terminal (/dev/pts/X)
+    |
+    v
+Terminal Emulator
+    |
+    v
+Text displayed on screen
+```
+
+---
+
+# 12. Real glibc Code Example
+
+From glibc source (`printf.c` simplified):
+
+```c
+int
+__printf (const char *format, ...)
+{
+  va_list arg;
+  int done;
+
+  va_start (arg, format);
+  done = __vfprintf_internal (stdout, format, arg);
+  va_end (arg);
+
+  return done;
+}
+```
+
+---
+
+# 13. Seeing This Live with `strace`
+
+Run:
+
+```bash
+strace ./a.out
+```
+
+Output will include:
+
+```
+write(1, "Hello world 42\n", 15) = 15
+```
+
+This proves that **printf eventually becomes write syscall**.
+
+---
+
+# 14. Minimal `printf` Implementation Example
+
+Here's a **tiny version of printf** to demonstrate the idea:
+
+```c
+#include <stdarg.h>
+#include <unistd.h>
+
+void mini_printf(const char *fmt, ...)
+{
+    char buffer[256];
+    int i = 0;
+
+    va_list args;
+    va_start(args, fmt);
+
+    for (; *fmt; fmt++) {
+        if (*fmt == '%') {
+            fmt++;
+            if (*fmt == 'd') {
+                int n = va_arg(args, int);
+                i += sprintf(buffer + i, "%d", n);
+            }
+        } else {
+            buffer[i++] = *fmt;
+        }
+    }
+
+    write(1, buffer, i);
+
+    va_end(args);
+}
+```
+
+---
+
+# 15. Important Concepts Involved
+
+Internally `printf` uses:
+
+* **Variadic functions (`va_list`)**
+* **Format string parsing**
+* **stdio buffering**
+* **file descriptors**
+* **system calls**
+* **TTY subsystem**
+* **terminal emulator**
+
+---
+
+✅ **Key Insight**
+
+`printf` itself **does NOT print to screen**.
+
+It only:
+
+```
+format text → call write()
+```
+
+Everything else is handled by **Linux kernel + terminal**.
+
+---
+
+===========================================================================================================================
+
+2. arya@ubuntu:~/Desktop/harish/second$ strace ./a.out
+execve("./a.out", ["./a.out"], 0x7ffe923d57b0 /* 47 vars */) = 0
+brk(NULL)                               = 0x55fd2d99c000
+arch_prctl(0x3001 /* ARCH_??? */, 0x7ffd41944180) = -1 EINVAL (Invalid argument)
+access("/etc/ld.so.preload", R_OK)      = -1 ENOENT (No such file or directory)
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+fstat(3, {st_mode=S_IFREG|0644, st_size=60688, ...}) = 0
+mmap(NULL, 60688, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f0054307000
+close(3)                                = 0
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+read(3, "\177ELF\2\1\1\3\0\0\0\0\0\0\0\0\3\0>\0\1\0\0\0\300A\2\0\0\0\0\0"..., 832) = 832
+pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+pread64(3, "\4\0\0\0\20\0\0\0\5\0\0\0GNU\0\2\0\0\300\4\0\0\0\3\0\0\0\0\0\0\0", 32, 848) = 32
+pread64(3, "\4\0\0\0\24\0\0\0\3\0\0\0GNU\0W\222s/x1X\306o\264\363udX\312$"..., 68, 880) = 68
+fstat(3, {st_mode=S_IFREG|0755, st_size=2029592, ...}) = 0
+mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f0054305000
+pread64(3, "\6\0\0\0\4\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0\0"..., 784, 64) = 784
+pread64(3, "\4\0\0\0\20\0\0\0\5\0\0\0GNU\0\2\0\0\300\4\0\0\0\3\0\0\0\0\0\0\0", 32, 848) = 32
+pread64(3, "\4\0\0\0\24\0\0\0\3\0\0\0GNU\0W\222s/x1X\306o\264\363udX\312$"..., 68, 880) = 68
+mmap(NULL, 2037344, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0) = 0x7f0054113000
+mmap(0x7f0054135000, 1540096, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x22000) = 0x7f0054135000
+mmap(0x7f00542ad000, 319488, PROT_READ, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x19a000) = 0x7f00542ad000
+mmap(0x7f00542fb000, 24576, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x1e7000) = 0x7f00542fb000
+mmap(0x7f0054301000, 13920, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f0054301000
+close(3)                                = 0
+arch_prctl(ARCH_SET_FS, 0x7f0054306540) = 0
+mprotect(0x7f00542fb000, 16384, PROT_READ) = 0
+mprotect(0x55fd283bd000, 4096, PROT_READ) = 0
+mprotect(0x7f0054343000, 4096, PROT_READ) = 0
+munmap(0x7f0054307000, 60688)           = 0
+fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0), ...}) = 0
+brk(NULL)                               = 0x55fd2d99c000
+brk(0x55fd2d9bd000)                     = 0x55fd2d9bd000
+write(1, "HI Harish glad to meet u...\n", 28HI Harish glad to meet u...
+) = 28
+exit_group(0)                           = ?
++++ exited with 0 +++
+arya@ubuntu:~/Desktop/harish/second$ 
+
+explain me this.
+
+
+Great 👍 You already did the **right experiment using `strace`**.
+Now I'll explain **what each major part of this output means**, step-by-step from **program start → loading libc → executing printf → kernel write → terminal output**.
+
+I'll focus on the **important lines** instead of every byte.
+
+---
+
+# 1. Program Starts (`execve`)
+
+```
+execve("./a.out", ["./a.out"], 0x7ffe923d57b0 /* 47 vars */) = 0
+```
+
+### What happens
+
+Your shell runs the program using the **execve system call**.
+
+Kernel:
+
+1. Loads the ELF executable `a.out`
+2. Creates a new process image
+3. Sets up stack, environment variables, arguments
+
+Meaning:
+
+```
+program start
+```
+
+Arguments passed:
+
+```
+argv[0] = "./a.out"
+```
+
+---
+
+# 2. Heap Initialization (`brk`)
+
+```
+brk(NULL) = 0x55fd2d99c000
+```
+
+### What is `brk`?
+
+`brk` manages the **heap memory**.
+
+This call asks:
+
+> where is the current heap end?
+
+Kernel returns:
+
+```
+0x55fd2d99c000
+```
+
+This becomes the base for future `malloc()` calls.
+
+---
+
+# 3. Dynamic Loader Starts
+
+Next lines:
+
+```
+access("/etc/ld.so.preload", R_OK)
+openat("/etc/ld.so.cache")
+```
+
+This is done by the **dynamic linker (`ld-linux.so`)**.
+
+Because your program is **dynamically linked**.
+
+The loader must find libraries like:
+
+```
+libc.so
+```
+
+---
+
+# 4. Load Library Cache
+
+```
+openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+```
+
+This file contains **cached library paths**.
+
+Example entry:
+
+```
+libc.so.6 -> /lib/x86_64-linux-gnu/libc.so.6
+```
+
+So the loader can find libraries quickly.
+
+---
+
+# 5. Loading libc
+
+```
+openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+```
+
+Kernel opens:
+
+```
+GNU C Library
+```
+
+This library contains:
+
+```
+printf
+malloc
+exit
+write wrapper
+FILE streams
+```
+
+---
+
+# 6. Reading ELF Headers
+
+```
+read(3, "\177ELF...", 832) = 832
+```
+
+Loader reads the **ELF header** of libc.
+
+ELF header contains:
+
+```
+sections
+segments
+entry points
+symbols
+```
+
+---
+
+# 7. Memory Mapping the Library
+
+```
+mmap(NULL, 2037344, PROT_READ, MAP_PRIVATE|MAP_DENYWRITE, 3, 0)
+```
+
+### What is mmap?
+
+It maps a file **directly into memory**.
+
+Meaning:
+
+```
+libc.so → mapped into process memory
+```
+
+Layout becomes something like:
+
+```
+0x7f0054113000  libc code
+0x7f00542fb000  libc data
+```
+
+This allows the CPU to execute libc functions like:
+
+```
+printf()
+```
+
+---
+
+# 8. Thread Local Storage Setup
+
+```
+arch_prctl(ARCH_SET_FS, 0x7f0054306540)
+```
+
+Sets **FS register** for thread-local storage.
+
+Used for:
+
+```
+errno
+thread variables
+glibc internals
+```
+
+---
+
+# 9. Memory Protection
+
+```
+mprotect(...)
+```
+
+Protects memory regions.
+
+Example:
+
+```
+code = read + execute
+data = read + write
+```
+
+Security measure.
+
+---
+
+# 10. stdout Check
+
+```
+fstat(1, {st_mode=S_IFCHR|0620, st_rdev=makedev(0x88, 0)})
+```
+
+`1` = **stdout file descriptor**
+
+Kernel checks what type of file it is.
+
+Result:
+
+```
+S_IFCHR
+```
+
+Meaning:
+
+```
+character device
+```
+
+Which means:
+
+```
+terminal
+```
+
+Example device:
+
+```
+/dev/pts/0
+```
+
+So your stdout is a **terminal device**.
+
+---
+
+# 11. Heap Expansion
+
+```
+brk(0x55fd2d9bd000)
+```
+
+Program increases heap space.
+
+glibc may allocate buffers like:
+
+```
+stdout buffer
+printf buffer
+```
+
+---
+
+# 12. The MOST IMPORTANT LINE (printf)
+
+Here is your **actual printing**:
+
+```
+write(1, "HI Harish glad to meet u...\n", 28
+```
+
+Meaning:
+
+```
+write(
+    fd = 1,
+    buffer = "HI Harish glad to meet u...\n",
+    size = 28
+)
+```
+
+Then kernel writes it to the terminal.
+
+Your terminal displays:
+
+```
+HI Harish glad to meet u...
+```
+
+This confirms:
+
+```
+printf → write syscall
+```
+
+Exactly what we expected.
+
+---
+
+# 13. Program Exit
+
+```
+exit_group(0)
+```
+
+Process exits with code:
+
+```
+0
+```
+
+Kernel then:
+
+```
+destroys process
+releases memory
+closes file descriptors
+```
+
+---
+
+# 14. Final Message
+
+```
++++ exited with 0 +++
+```
+
+Meaning:
+
+```
+program terminated successfully
+```
+
+---
+
+# 15. Complete Execution Flow
+
+Your program execution actually looked like this:
+
+```
+Shell
+   │
+   │ execve()
+   ▼
+Linux Kernel
+   │
+   │ loads ELF
+   ▼
+Dynamic Loader (ld-linux)
+   │
+   │ loads libc.so
+   ▼
+Program Starts (main)
+   │
+   │ printf()
+   ▼
+glibc
+   │
+   │ format string
+   ▼
+write(1, buffer, size)
+   │
+   ▼
+Linux Kernel
+   │
+   │ tty driver
+   ▼
+/dev/pts/0
+   │
+   ▼
+Terminal Emulator
+   │
+   ▼
+Text appears on screen
+```
+
+---
+
+# 16. Interesting Detail From Your Trace
+
+This line:
+
+```
+fstat(1, {st_mode=S_IFCHR})
+```
+
+means stdout is a **character device**.
+
+If you redirected output:
+
+```
+./a.out > file.txt
+```
+
+Then you'd see:
+
+```
+S_IFREG
+```
+
+Meaning:
+
+```
+regular file
+```
+
+So `printf` doesn't know **where output goes**.
+
+It just writes to:
+
+```
+fd 1
+```
+
+---
+
+# 17. One More Cool Experiment
+
+Run:
+
+```
+strace -e write ./a.out
+```
+
+Output will be cleaner:
+
+```
+write(1, "HI Harish glad to meet u...\n", 28)
+```
+
+This isolates **only the actual printing syscall**.
+
+---
+
+✅ **Key Insight**
+
+Your program **never prints to screen directly**.
+
+It only does:
+
+```
+printf()
+   ↓
+glibc formatting
+   ↓
+write syscall
+   ↓
+kernel
+   ↓
+tty device
+   ↓
+terminal emulator
+```
+
+---
+
+If you want, I can also show you **3 extremely interesting low-level things** next:
+
+1️⃣ **How `%d` conversion works inside `printf` (integer → string algorithm)**
+2️⃣ **How Linux TTY driver prints characters internally**
+3️⃣ **How to write a mini `printf` like glibc (step-by-step)**
+
+These are **core Linux / systems programming concepts**.
+
