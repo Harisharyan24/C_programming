@@ -934,3 +934,340 @@ If you want, I can also show you **3 extremely interesting low-level things** ne
 
 These are **core Linux / systems programming concepts**.
 
+================================================================================================================================
+
+3.what exactly this strace gave
+
+`strace` shows you **every system call your program makes to the Linux kernel**.
+Think of it as a **debugger for the boundary between user space and kernel space**.
+
+Your program runs in **user space**, but whenever it needs OS services (files, memory, terminal, processes), it must call the **kernel through system calls**. `strace` intercepts and prints those calls.
+
+---
+
+# 1. What `strace` Actually Shows
+
+`strace` prints:
+
+```
+system_call(arguments) = return_value
+```
+
+Example from your output:
+
+```
+write(1, "HI Harish glad to meet u...\n", 28) = 28
+```
+
+Meaning:
+
+| Part             | Meaning                                |
+| ---------------- | -------------------------------------- |
+| `write`          | system call name                       |
+| `1`              | file descriptor (stdout)               |
+| `"HI Harish..."` | data written                           |
+| `28`             | number of bytes                        |
+| `= 28`           | return value (success, wrote 28 bytes) |
+
+So this line tells us **exactly how your text reached the terminal**.
+
+---
+
+# 2. Why So Many Lines?
+
+Your program is small:
+
+```c
+printf("HI Harish glad to meet u...\n");
+```
+
+But `strace` shows **30+ system calls** because before running `main()` Linux must:
+
+1. load the program
+2. load libraries
+3. map memory
+4. setup stack
+5. setup thread structures
+6. prepare stdout
+
+All these require **kernel interactions**.
+
+---
+
+# 3. Types of System Calls You Saw
+
+Your trace contains several categories.
+
+---
+
+## A. Process Creation
+
+```
+execve("./a.out", ["./a.out"], ...)
+```
+
+Meaning:
+
+```
+start this program
+```
+
+The shell uses `execve()` to run your executable.
+
+---
+
+## B. Memory Management
+
+Examples:
+
+```
+brk(NULL)
+mmap(...)
+munmap(...)
+mprotect(...)
+```
+
+These control **process memory**.
+
+| syscall    | purpose                   |
+| ---------- | ------------------------- |
+| `brk`      | expand heap               |
+| `mmap`     | map files or memory       |
+| `munmap`   | remove memory mapping     |
+| `mprotect` | change memory permissions |
+
+Used when loading **libc**.
+
+---
+
+## C. File Operations
+
+Examples:
+
+```
+openat(...)
+read(...)
+close(...)
+fstat(...)
+```
+
+Used to **load libraries and check files**.
+
+Example:
+
+```
+openat("/lib/x86_64-linux-gnu/libc.so.6")
+```
+
+This loads the **C standard library**.
+
+---
+
+## D. Architecture Setup
+
+```
+arch_prctl(ARCH_SET_FS,...)
+```
+
+This sets **thread local storage** for glibc.
+
+Used internally for things like:
+
+```
+errno
+thread variables
+```
+
+---
+
+## E. Terminal Output (The Important One)
+
+```
+write(1, "HI Harish glad to meet u...\n", 28)
+```
+
+This is the **actual printing**.
+
+Your code:
+
+```
+printf(...)
+```
+
+became:
+
+```
+write()
+```
+
+---
+
+## F. Program Exit
+
+```
+exit_group(0)
+```
+
+Meaning:
+
+```
+terminate process successfully
+```
+
+---
+
+# 4. What `strace` Helped You Discover
+
+Your experiment revealed the **true execution path**:
+
+```
+printf()
+   ↓
+glibc formatting
+   ↓
+write()
+   ↓
+kernel
+   ↓
+terminal
+```
+
+Without `strace`, this would be **invisible**.
+
+---
+
+# 5. What `strace` Is Mainly Used For
+
+Linux developers use `strace` for:
+
+### Debugging programs
+
+Example:
+
+```
+strace ./program
+```
+
+Find where it fails.
+
+---
+
+### Finding missing files
+
+Example:
+
+```
+open("config.txt") = -1 ENOENT
+```
+
+Shows file not found.
+
+---
+
+### Understanding program behavior
+
+Example:
+
+```
+strace firefox
+```
+
+Shows how Firefox interacts with Linux.
+
+---
+
+### Security / reverse engineering
+
+Shows:
+
+```
+files accessed
+network calls
+memory usage
+```
+
+---
+
+# 6. Simplified View of Your Trace
+
+If we remove the loader noise, your program really did this:
+
+```
+execve("./a.out")
+write(1, "HI Harish glad to meet u...\n", 28)
+exit_group(0)
+```
+
+Everything else was **setup work**.
+
+---
+
+# 7. One Very Useful Command
+
+To see **only printing**:
+
+```
+strace -e write ./a.out
+```
+
+Output:
+
+```
+write(1, "HI Harish glad to meet u...\n", 28)
+```
+
+Much cleaner.
+
+---
+
+# 8. One More Cool Example
+
+Run:
+
+```
+strace ls
+```
+
+You'll see things like:
+
+```
+openat("/etc/ld.so.cache")
+openat("/lib/x86_64-linux-gnu/libc.so.6")
+getdents()
+write()
+```
+
+Which reveals how `ls` works internally.
+
+---
+
+# 9. Simple Definition
+
+**In one sentence:**
+
+> `strace` shows every system call your program makes to the Linux kernel.
+
+---
+
+✅ **Best Mental Model**
+
+```
+User Program
+     │
+     │ system calls
+     ▼
+Linux Kernel
+```
+
+`strace` prints **everything crossing that boundary**.
+
+---
+
+If you're learning **Linux internals**, the next powerful tools after `strace` are:
+
+1️⃣ `ltrace` → traces **library calls like printf**
+2️⃣ `gdb` → step through assembly
+3️⃣ `objdump` → see compiled machine code
+4️⃣ `/proc/<pid>/maps` → see memory layout
+
+These together reveal **how Linux programs really work under the hood**.
