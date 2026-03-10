@@ -1,4 +1,6 @@
-You want to explain this **C code concept to a manager in the context of Linux internals**. I'll break it down so you can **both understand it technically and present it clearly in a professional explanation**. 🧑‍💻🐧
+You want to explain this **C code concept to a manager in the context of Linux internals**.
+I'll break it down so you can 
+**both understand it technically and present it clearly in a professional explanation**. 🧑‍💻🐧
 
 ---
 
@@ -307,13 +309,18 @@ for (i = 0; i < MAX_BUFFERS; i++) {
 
 You can explain it like this:
 
-> This section demonstrates basic C constructs used heavily in Linux internals. The `for` loop controls iteration efficiently, which is the same mechanism the Linux kernel uses to iterate through system resources like processes, memory pages, or file descriptors. The example also introduces symbolic constants using `#define`, which is a common Linux kernel practice to avoid hard-coded values and make code maintainable and readable.
+> This section demonstrates basic C constructs used heavily in Linux internals. The `for` loop controls iteration 
+efficiently, which is the same mechanism the Linux kernel uses to iterate through system resources like processes, 
+memory pages, or file descriptors. The example also introduces symbolic constants using `#define`, which is a 
+common Linux kernel practice to avoid hard-coded values and make code maintainable and readable.
 
 ---
 
 ✅ **One-line summary you can say to your manager**
 
-> This example shows how C loops and symbolic constants are used to build maintainable system-level code, the same patterns heavily used throughout the Linux kernel for iterating over system structures and defining configuration values.
+> This example shows how C loops and symbolic constants are used to build maintainable 
+system-level code, the same patterns heavily used throughout the Linux kernel for 
+iterating over system structures and defining configuration values.
 
 ---
 
