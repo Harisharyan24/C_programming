@@ -1,0 +1,147 @@
+This passage explains **how C programs read and write text characters** using the standard library. I'll simplify it step-by-step.
+
+---
+
+## 1. Input and Output as Character Streams
+
+In C, **text input and output are treated as streams of characters**.
+
+* A **stream** means a **continuous flow of characters**.
+* The characters are grouped into **lines**.
+* Each line ends with a **newline character (`\n`)**.
+
+Example text stream:
+
+```
+Hello
+World
+```
+
+Internally it is like:
+
+```
+H e l l o \n W o r l d \n
+```
+
+The **C library handles how lines are stored or read**, so the programmer does not need to worry about it.
+
+---
+
+## 2. Reading Characters – `getchar()`
+
+C provides a simple function called **`getchar()`** to read **one character at a time**.
+
+Example:
+
+```c
+c = getchar();
+```
+
+What happens here:
+
+1. The program waits for input.
+2. The user types something (usually from the keyboard).
+3. `getchar()` reads **the next character**.
+4. That character is stored in variable `c`.
+
+Example input:
+
+```
+A
+```
+
+Then
+
+```
+c = 'A'
+```
+
+---
+
+## 3. Writing Characters – `putchar()`
+
+To **print one character**, C uses **`putchar()`**.
+
+Example:
+
+```c
+putchar(c);
+```
+
+This prints the character stored in `c` to the screen.
+
+Example:
+
+```c
+char c = 'A';
+putchar(c);
+```
+
+Output:
+
+```
+A
+```
+
+---
+
+## 4. Example Program
+
+```c
+#include <stdio.h>
+
+int main() {
+    int c;
+
+    c = getchar();   // read one character
+    putchar(c);      // print that character
+
+    return 0;
+}
+```
+
+If you type:
+
+```
+B
+```
+
+Output will be:
+
+```
+B
+```
+
+---
+
+## 5. Using `putchar()` with `printf()`
+
+You can mix **`putchar()`** and **`printf()`**.
+
+Example:
+
+```c
+printf("Letter: ");
+putchar('A');
+```
+
+Output:
+
+```
+Letter: A
+```
+
+The output appears **in the same order as the function calls**.
+
+---
+
+✅ **In short:**
+
+* **Text is handled as streams of characters.**
+* **`getchar()`** → reads **one character** from input.
+* **`putchar()`** → prints **one character** to output.
+* Input usually comes from **keyboard**, output goes to **screen**.
+
+---
+
+If you want, I can also explain **the classic K&R example: a program that copies input to output using `getchar()` and `putchar()`** (very important for exams).
