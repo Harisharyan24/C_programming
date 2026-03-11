@@ -1,0 +1,300 @@
+I’ll explain this **very simply**, step-by-step. This program counts **lines, words, and characters** from the input text.
+
+---
+
+# Main Idea of the Program
+
+This program reads text from input and counts:
+
+* **Characters**
+* **Words**
+* **Lines**
+
+A **word** is defined as:
+
+> A sequence of characters that does **not contain space, tab, or newline**.
+
+Example input:
+
+```
+Hello world
+C programming
+```
+
+Output:
+
+```
+2 3 26
+```
+
+Meaning:
+
+```
+Lines = 2
+Words = 3
+Characters = 26
+```
+
+---
+
+# The Program
+
+```c
+#include <stdio.h>
+
+#define IN  1
+#define OUT 0
+
+/* count lines, words, and characters */
+
+main()
+{
+    int c, nl, nw, nc, state;
+
+    state = OUT;
+    nl = nw = nc = 0;
+
+    while ((c = getchar()) != EOF) {
+        ++nc;
+
+        if (c == '\n')
+            ++nl;
+
+        if (c == ' ' || c == '\n' || c == '\t')
+            state = OUT;
+
+        else if (state == OUT) {
+            state = IN;
+            ++nw;
+        }
+    }
+
+    printf("%d %d %d\n", nl, nw, nc);
+}
+```
+
+---
+
+# 1️⃣ What the Variables Mean
+
+| Variable | Meaning                                             |
+| -------- | --------------------------------------------------- |
+| `c`      | stores each character                               |
+| `nl`     | number of **lines**                                 |
+| `nw`     | number of **words**                                 |
+| `nc`     | number of **characters**                            |
+| `state`  | tells if we are **inside a word or outside a word** |
+
+---
+
+# 2️⃣ IN and OUT
+
+```c
+#define IN 1
+#define OUT 0
+```
+
+These are **symbolic constants**.
+
+They mean:
+
+```
+IN  → inside a word
+OUT → outside a word
+```
+
+Example:
+
+```
+Hello world
+```
+
+Program state:
+
+```
+H → IN
+e → IN
+l → IN
+l → IN
+o → IN
+space → OUT
+w → IN
+```
+
+---
+
+# 3️⃣ Initialize Counters
+
+```c
+state = OUT;
+nl = nw = nc = 0;
+```
+
+This means:
+
+```
+lines = 0
+words = 0
+characters = 0
+```
+
+---
+
+# 4️⃣ Read Characters Until Input Ends
+
+```c
+while ((c = getchar()) != EOF)
+```
+
+The program **keeps reading characters** until **EOF (end of input)**.
+
+---
+
+# 5️⃣ Count Characters
+
+```c
+++nc;
+```
+
+Every character increases the **character count**.
+
+---
+
+# 6️⃣ Count Lines
+
+```c
+if (c == '\n')
+    ++nl;
+```
+
+Every newline (`\n`) means **a new line**.
+
+---
+
+# 7️⃣ Detect Spaces Between Words
+
+```c
+if (c == ' ' || c == '\n' || c == '\t')
+    state = OUT;
+```
+
+This checks if the character is:
+
+* space `' '`
+* newline `'\n'`
+* tab `'\t'`
+
+These **separate words**, so the program becomes **outside a word**.
+
+`||` means **OR**.
+
+---
+
+# 8️⃣ Detect Start of a New Word
+
+```c
+else if (state == OUT) {
+    state = IN;
+    ++nw;
+}
+```
+
+Meaning:
+
+If we were **outside a word** and now we see a character that is not space/newline/tab → a **new word starts**.
+
+So:
+
+```
+increase word count
+```
+
+Example:
+
+```
+Hello world
+```
+
+When `H` appears:
+
+```
+OUT → IN
+words = 1
+```
+
+When `w` appears after space:
+
+```
+OUT → IN
+words = 2
+```
+
+---
+
+# 9️⃣ Print Results
+
+```c
+printf("%d %d %d\n", nl, nw, nc);
+```
+
+Output format:
+
+```
+lines words characters
+```
+
+Example:
+
+```
+2 5 45
+```
+
+---
+
+# Simple Visual Example
+
+Input:
+
+```
+I love C
+```
+
+Step-by-step:
+
+| Character | Action   |
+| --------- | -------- |
+| I         | new word |
+| space     | OUT      |
+| love      | new word |
+| space     | OUT      |
+| C         | new word |
+
+Result:
+
+```
+Lines = 1
+Words = 3
+Characters = 8
+```
+
+---
+
+# Very Simple Explanation
+
+You can explain it like this:
+
+> This program reads characters one by one. It counts every character, counts lines when it sees a newline, and counts words whenever it detects the start of a new word after a space, tab, or newline.
+
+---
+
+✅ **Summary**
+
+The program counts:
+
+* characters → every input character
+* lines → when `\n` appears
+* words → when a new word begins after space/tab/newline
+
+---
+
+If you'd like, I can also show you **a diagram of how the `IN` and `OUT` states change while reading a sentence**, which makes this program **much easier to understand**.
