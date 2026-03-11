@@ -1,0 +1,205 @@
+## Line Counting Program — Simple Explanation
+
+This program **counts how many lines are in the input**.
+
+In C, a **line ends with a newline character**:
+
+```
+\n
+```
+
+So counting lines is basically **counting how many `\n` characters appear in the input**.
+
+---
+
+# The Program
+
+```c
+#include <stdio.h>
+
+/* count lines in input */
+main()
+{
+    int c, nl;
+
+    nl = 0;
+
+    while ((c = getchar()) != EOF)
+        if (c == '\n')
+            ++nl;
+
+    printf("%d\n", nl);
+}
+```
+
+---
+
+# Step-by-Step Explanation
+
+## 1️⃣ Variables
+
+```c
+int c, nl;
+```
+
+* `c` → stores each character read from input
+* `nl` → stores **number of lines**
+
+---
+
+## 2️⃣ Start line count at zero
+
+```c
+nl = 0;
+```
+
+Initially, no lines have been counted.
+
+---
+
+## 3️⃣ Read characters until input ends
+
+```c
+while ((c = getchar()) != EOF)
+```
+
+This means:
+
+1. Read one character from input
+2. Store it in `c`
+3. Continue until **EOF (End Of File)**
+
+---
+
+## 4️⃣ Check if the character is a newline
+
+```c
+if (c == '\n')
+```
+
+This checks:
+
+```
+Is the character a newline?
+```
+
+---
+
+## 5️⃣ Increase line count
+
+```c
+++nl;
+```
+
+If a newline is found, the program **adds 1 to the line counter**.
+
+---
+
+## 6️⃣ Print total lines
+
+```c
+printf("%d\n", nl);
+```
+
+Finally, the program prints the **total number of lines**.
+
+---
+
+# Example
+
+### Input
+
+```
+Hello
+World
+C programming
+```
+
+Internally it looks like:
+
+```
+Hello\n
+World\n
+C programming\n
+```
+
+There are **3 newline characters**.
+
+### Output
+
+```
+3
+```
+
+---
+
+# Important Concepts
+
+## `==` vs `=`
+
+```
+==  → comparison (is equal to)
+=   → assignment
+```
+
+Example:
+
+```
+c == '\n'   → checking if character is newline
+c = getchar() → assigning input to c
+```
+
+Beginners often confuse these two.
+
+---
+
+## Character Constants
+
+A character inside **single quotes** is called a **character constant**.
+
+Example:
+
+```
+'A'
+'B'
+'\n'
+```
+
+These are actually **numbers inside the computer**.
+
+Example (ASCII values):
+
+```
+'A' = 65
+'\n' = 10
+```
+
+But we write `'A'` instead of `65` because it is **easier to understand**.
+
+---
+
+# Important Difference
+
+```
+'\n'
+```
+
+means **a single character (newline)**
+
+but
+
+```
+"\n"
+```
+
+means **a string containing a newline**
+
+---
+
+# Simple Explanation You Can Tell Someone
+
+> This program reads characters one by one. Whenever it finds a newline character (`\n`), it increases a counter. At the end, it prints the total number of lines entered.
+
+---
+
+If you'd like, I can also explain the **next section (1.5.4 Word Counting)** which is **one of the most famous programs in C (the `wc` program)** and very important for understanding loops and conditions.
