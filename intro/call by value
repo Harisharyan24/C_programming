@@ -1,0 +1,186 @@
+Here is a **simple explanation you can easily explain to your manager**.
+
+---
+
+# Main Idea: Call by Value in C
+
+In **C**, when we pass arguments to a function, they are passed **by value**.
+
+This means:
+
+> The function receives a **copy of the value**, not the original variable.
+
+So if the function changes the value, **the original variable in the main program does not change**.
+
+---
+
+# Simple Example
+
+```c
+void change(int x)
+{
+    x = 10;
+}
+```
+
+```c
+int a = 5;
+change(a);
+```
+
+After the function runs:
+
+```id="1mqczs"
+a = 5
+```
+
+Even though inside the function:
+
+```id="l3py6t"
+x = 10
+```
+
+Why?
+
+Because **x is just a copy of a**.
+
+---
+
+# Example from the Book (Improved `power()` Function)
+
+```c
+int power(int base, int n)
+{
+    int p;
+
+    for (p = 1; n > 0; --n)
+        p = p * base;
+
+    return p;
+}
+```
+
+---
+
+# How This Works
+
+Example call:
+
+```id="dtiv0a"
+power(2, 3)
+```
+
+Inside the function:
+
+```
+base = 2
+n = 3
+```
+
+Loop process:
+
+```
+p = 1
+p = 1 * 2 = 2
+p = 2 * 2 = 4
+p = 4 * 2 = 8
+```
+
+Return:
+
+```
+8
+```
+
+During the loop:
+
+```
+n = 3 → 2 → 1 → 0
+```
+
+But this **does not change the original value passed to the function**.
+
+---
+
+# Why Call by Value is Useful
+
+It provides **safety and simplicity**.
+
+Benefits:
+
+* Functions **cannot accidentally change original variables**
+* Makes debugging easier
+* Functions work with **local copies**
+
+So functions behave more **independently**.
+
+---
+
+# What If We Want to Change the Original Variable?
+
+Sometimes we **do want the function to modify the original variable**.
+
+In that case we use **pointers** (memory addresses).
+
+Example idea:
+
+```
+pass the address of the variable
+```
+
+Then the function can modify the actual variable.
+
+This concept is called **call by reference**, implemented using **pointers in C**.
+
+(You will learn this in **Chapter 5**.)
+
+---
+
+# Special Case: Arrays
+
+Arrays behave **differently**.
+
+When we pass an array to a function:
+
+```
+we pass its memory address
+```
+
+So the function **can modify the original array**.
+
+Example:
+
+```
+int arr[5];
+function(arr);
+```
+
+The function can change elements like:
+
+```
+arr[0], arr[1], arr[2]
+```
+
+because it is working with the **actual array location in memory**.
+
+---
+
+# Simple Explanation for Your Manager
+
+You can explain it like this:
+
+> In C, function arguments are passed by value, meaning the function receives copies of the data instead of the original variables. This ensures that changes inside the function do not affect the original values in the calling program. However, arrays behave differently because their memory address is passed, allowing functions to modify the original array elements.
+
+---
+
+✅ **Key Points**
+
+* C uses **call by value**
+* Functions receive **copies of variables**
+* Original variables **remain unchanged**
+* Arrays pass **memory addresses**, so they **can be modified**
+* To modify normal variables, C uses **pointers**
+
+---
+
+If you want, I can also show you a **very small 3-line example that interviewers commonly ask about call-by-value vs pointers in C**.
